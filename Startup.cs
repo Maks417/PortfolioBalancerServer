@@ -22,12 +22,7 @@ namespace PortfolioBalancerServer
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddCors(o => o.AddPolicy("GitHubPages", builder =>
-            {
-                builder.WithOrigins("https://maks417.github.io/")
-                       .AllowAnyMethod()
-                       .AllowAnyHeader();
-            }));
+            services.AddCors();
 
             services.Configure<RouteOptions>(options =>
             {
@@ -53,13 +48,17 @@ namespace PortfolioBalancerServer
 
             }
 
-            app.UseCors("GitHubPages");
             app.UseSwagger();
             app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "PortfolioBalancerServer v1"));
 
             app.UseHttpsRedirection();
 
             app.UseRouting();
+
+            app.UseCors(b => b
+                .AllowAnyMethod()
+                .AllowAnyHeader()
+                .AllowAnyOrigin());
 
             app.UseAuthorization();
 
