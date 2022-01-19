@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.OpenApi.Models;
 using PortfolioBalancerServer.Interfaces;
 using PortfolioBalancerServer.Services;
+using System;
 
 namespace PortfolioBalancerServer
 {
@@ -37,6 +38,11 @@ namespace PortfolioBalancerServer
 
             services.AddTransient<ICurrencyConverter, CurrencyConverter>();
             services.AddSingleton<ICalculationService, CalculationService>();
+
+            services.AddHttpClient<ICurrencyConverter, CurrencyConverter>(client =>
+            {
+                client.BaseAddress = new Uri(Configuration["CurrencyServiceUrl"]);
+            });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

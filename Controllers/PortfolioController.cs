@@ -4,6 +4,7 @@ using PortfolioBalancerServer.Interfaces;
 using PortfolioBalancerServer.Models;
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace PortfolioBalancerServer.Controllers
 {
@@ -22,7 +23,7 @@ namespace PortfolioBalancerServer.Controllers
 
         [HttpPost]
         [Route("calculate")]
-        public IActionResult Calculate([FromBody] CalculationData formData)
+        public async Task<IActionResult> Calculate([FromBody] CalculationData formData)
         {
             if (!ModelState.IsValid)
             {
@@ -30,7 +31,7 @@ namespace PortfolioBalancerServer.Controllers
                 return BadRequest(errors);
             }
 
-            var (stocksAmount, bondsAmount, contributionAmount) = _currencyConverter.ConvertToRub(formData.StockValues, formData.BondValues, formData.ContributionAmount);
+            var (stocksAmount, bondsAmount, contributionAmount) = await _currencyConverter.Convert(formData.StockValues, formData.BondValues, formData.ContributionAmount);
 
             var (firstRatio, secondRatio) = ParseRatio(formData.Ratio);
             if (firstRatio == decimal.Zero)
