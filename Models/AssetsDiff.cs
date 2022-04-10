@@ -1,6 +1,6 @@
 ﻿namespace PortfolioBalancerServer.Models
 {
-    public class AssetsDiff
+    public record AssetsDiff
     {
         public decimal StocksDiff { get; set; }
 

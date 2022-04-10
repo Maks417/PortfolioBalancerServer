@@ -2,7 +2,7 @@
 
 namespace PortfolioBalancerServer.Models
 {
-    public class CalculationData
+    public record CalculationData
     {
         [Required]
         public string Ratio { get; set; }
@@ -17,7 +17,7 @@ namespace PortfolioBalancerServer.Models
         public Asset ContributionAmount { get; set; }
     }
 
-    public class Asset
+    public record Asset
     {
         [Required]
         public decimal Value { get; set; }

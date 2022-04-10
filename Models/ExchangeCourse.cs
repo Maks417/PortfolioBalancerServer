@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace PortfolioBalancerServer.Models
 {
-    public class ExchangeCourse
+    public record ExchangeCourse
 	{
         public DateTime Date { get; set; }
         public DateTime PreviousDate { get; set; }
@@ -15,7 +15,7 @@ namespace PortfolioBalancerServer.Models
         public Dictionary<string, Currency> Currency { get; set; }
     }
 
-    public class Currency
+    public record Currency
     {
         public string ID { get; set; }
         public string NumCode { get; set; }
