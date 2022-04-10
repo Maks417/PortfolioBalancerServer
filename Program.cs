@@ -46,7 +46,7 @@ app.MapPost("api/portfolio/calculate", async (ICurrencyConverter currencyConvert
     var (firstRatio, secondRatio) = calculationService.ParseRatio(formData.Ratio);
     if (firstRatio == decimal.Zero)
     {
-        return Results.StatusCode(StatusCodes.Status422UnprocessableEntity);
+        return Results.BadRequest(new[] { new[] { "Ratio must have 100 in sum for format like '70/30'." } });
     }
 
     var assetsDiff = calculationService.SplitAssetsByRatio(stocksAmount, bondsAmount, contributionAmount, firstRatio, secondRatio);
