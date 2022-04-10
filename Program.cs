@@ -1,20 +1,60 @@
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Hosting;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.OpenApi.Models;
+using MiniValidation;
+using PortfolioBalancerServer.Interfaces;
+using PortfolioBalancerServer.Models;
+using PortfolioBalancerServer.Services;
 
-namespace PortfolioBalancerServer
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+builder.Services.AddEndpointsApiExplorer();
+
+builder.Services.AddCors();
+
+builder.Services.Configure<RouteOptions>(options => { options.LowercaseUrls = true; });
+
+builder.Services.AddMemoryCache();
+builder.Services.AddSwaggerGen(c => { c.SwaggerDoc("v1", new OpenApiInfo { Title = "PortfolioBalancerServer", Version = "v1" }); });
+
+builder.Services.AddTransient<ICurrencyConverter, CurrencyConverter>();
+builder.Services.AddSingleton<ICalculationService, CalculationService>();
+
+builder.Services.AddHttpClient<ICurrencyConverter, CurrencyConverter>(client => { client.BaseAddress = new Uri(builder.Configuration["CurrencyServiceUrl"]); });
+
+var app = builder.Build();
+
+// Configure the HTTP request pipeline.
+app.UseSwagger();
+
+app.UseHttpsRedirection();
+
+app.UseCors(b => b
+    .AllowAnyMethod()
+    .AllowAnyHeader()
+    .AllowAnyOrigin());
+
+app.MapPost("api/portfolio/calculate", async (ICurrencyConverter currencyConverter, ICalculationService calculationService, [FromBody]CalculationData formData) =>
 {
-    public class Program
+    if (!MiniValidator.TryValidate(formData, out var errors))
     {
-        public static void Main(string[] args)
-        {
-            CreateHostBuilder(args).Build().Run();
-        }
-
-        public static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args)
-                .ConfigureWebHostDefaults(webBuilder =>
-                {
-                    webBuilder.UseStartup<Startup>();
-                });
+        return Results.BadRequest(errors.Values);
     }
-}
+
+    var (stocksAmount, bondsAmount, contributionAmount) = await currencyConverter.Convert(formData.StockValues, formData.BondValues, formData.ContributionAmount);
+
+    var (firstRatio, secondRatio) = calculationService.ParseRatio(formData.Ratio);
+    if (firstRatio == decimal.Zero)
+    {
+        return Results.StatusCode(StatusCodes.Status422UnprocessableEntity);
+    }
+
+    var assetsDiff = calculationService.SplitAssetsByRatio(stocksAmount, bondsAmount, contributionAmount, firstRatio, secondRatio);
+    assetsDiff.Currency = formData.ContributionAmount.Currency;
+
+    return Results.Ok(assetsDiff);
+});
+
+app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "PortfolioBalancerServer v1"));
+
+app.Run();
