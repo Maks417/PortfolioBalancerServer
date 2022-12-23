@@ -1,7 +1,6 @@
 ﻿using PortfolioBalancerServer.Extensions;
 using PortfolioBalancerServer.Interfaces;
 using PortfolioBalancerServer.Models;
-using System;
 
 namespace PortfolioBalancerServer.Services
 {
@@ -11,7 +10,7 @@ namespace PortfolioBalancerServer.Services
         {
             if (string.IsNullOrEmpty(ratio)
                 || ratio.Length > 5
-                || (!ratio.Equals("100", StringComparison.OrdinalIgnoreCase) && !ratio.Contains("/", StringComparison.OrdinalIgnoreCase)))
+                || (!ratio.Equals("100", StringComparison.OrdinalIgnoreCase) && !ratio.Contains('/', StringComparison.OrdinalIgnoreCase)))
             {
                 return (decimal.Zero, decimal.Zero);
             }

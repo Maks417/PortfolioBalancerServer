@@ -1,12 +1,7 @@
 ﻿using Microsoft.Extensions.Caching.Memory;
 using PortfolioBalancerServer.Interfaces;
 using PortfolioBalancerServer.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace PortfolioBalancerServer.Services
 {
