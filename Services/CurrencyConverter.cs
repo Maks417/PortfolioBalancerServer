@@ -20,7 +20,7 @@ namespace PortfolioBalancerServer.Services
         public async Task<(decimal stocksAmount, decimal bondsAmount, decimal contibutionAmount)> Convert(
             IEnumerable<Asset> stocks, IEnumerable<Asset> bonds, Asset contribution)
         {
-            var (usd, eur) = await GetCoursesInRub();
+            var (usd, eur) = await GetRatesInRub();
 
             if (usd == null || eur == null)
             {
@@ -38,7 +38,7 @@ namespace PortfolioBalancerServer.Services
             return (convertedStocksAmount, convertedBondsAmount, convertedContributionAmount);
         }
 
-        private async Task<(Currency usd, Currency eur)> GetCoursesInRub()
+        private async Task<(Currency usd, Currency eur)> GetRatesInRub()
         {
             if (_cache.TryGetValue("usd", out Currency usd) && _cache.TryGetValue("eur", out Currency eur))
             {
@@ -46,10 +46,10 @@ namespace PortfolioBalancerServer.Services
             }
 
             var responseString = await _httpClient.GetStringAsync("daily_json.js");
-            var course = JsonSerializer.Deserialize<ExchangeCourse>(responseString);
+            var rate = JsonSerializer.Deserialize<ExchangeRate>(responseString);
 
-            if (!course.Currency.TryGetValue("USD", out usd)
-                || !course.Currency.TryGetValue("EUR", out eur))
+            if (!rate.Currency.TryGetValue("USD", out usd)
+                || !rate.Currency.TryGetValue("EUR", out eur))
             {
                 return (null, null);
             }

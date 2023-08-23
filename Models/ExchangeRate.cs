@@ -2,7 +2,7 @@
 
 namespace PortfolioBalancerServer.Models
 {
-    public record ExchangeCourse
+    public record ExchangeRate
 	{
         public DateTime Date { get; set; }
         public DateTime PreviousDate { get; set; }
