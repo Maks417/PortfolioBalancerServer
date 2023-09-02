@@ -6,7 +6,7 @@ namespace PortfolioBalancerServer.Models
 	{
         public DateTime Date { get; set; }
         public DateTime PreviousDate { get; set; }
-        public string PreviousURL { get; set; }
+        public string PreviousUrl { get; set; }
         public DateTime Timestamp { get; set; }
 
         [JsonPropertyName("Valute")]

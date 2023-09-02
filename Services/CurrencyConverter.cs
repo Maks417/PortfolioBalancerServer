@@ -27,13 +27,13 @@ namespace PortfolioBalancerServer.Services
                 return (decimal.Zero, decimal.Zero, decimal.Zero);
             }
 
-            var stocksAmount = stocks.Sum(x => ConverToRub(x, usd.Value, eur.Value));
-            var bondsAmount = bonds.Sum(x => ConverToRub(x, usd.Value, eur.Value));
-            var contributionAmount = ConverToRub(contribution, usd.Value, eur.Value);
+            var stocksAmount = stocks.Sum(x => ConvertToRub(x, usd.Value, eur.Value));
+            var bondsAmount = bonds.Sum(x => ConvertToRub(x, usd.Value, eur.Value));
+            var contributionAmount = ConvertToRub(contribution, usd.Value, eur.Value);
 
-            var convertedStocksAmount = ConverFromRub(contribution.Currency, stocksAmount, usd.Value, eur.Value);
-            var convertedBondsAmount = ConverFromRub(contribution.Currency, bondsAmount, usd.Value, eur.Value);
-            var convertedContributionAmount = ConverFromRub(contribution.Currency, contributionAmount, usd.Value, eur.Value);
+            var convertedStocksAmount = ConvertFromRub(contribution.Currency, stocksAmount, usd.Value, eur.Value);
+            var convertedBondsAmount = ConvertFromRub(contribution.Currency, bondsAmount, usd.Value, eur.Value);
+            var convertedContributionAmount = ConvertFromRub(contribution.Currency, contributionAmount, usd.Value, eur.Value);
 
             return (convertedStocksAmount, convertedBondsAmount, convertedContributionAmount);
         }
@@ -60,30 +60,24 @@ namespace PortfolioBalancerServer.Services
             return (usd, eur);
         }
 
-        private static decimal ConverToRub(Asset asset, decimal usdToRub, decimal eurToRub)
+        private static decimal ConvertToRub(Asset asset, decimal usdToRub, decimal eurToRub)
         {
-            switch (asset.Currency)
+            return asset.Currency switch
             {
-                case "usd":
-                    return asset.Value * usdToRub;
-                case "eur":
-                    return asset.Value * eurToRub;
-                default:
-                    return asset.Value;
-            }
+                "usd" => asset.Value * usdToRub,
+                "eur" => asset.Value * eurToRub,
+                _ => asset.Value
+            };
         }
 
-        private static decimal ConverFromRub(string resultCurrency, decimal value, decimal usdToRub, decimal eurToRub)
+        private static decimal ConvertFromRub(string resultCurrency, decimal value, decimal usdToRub, decimal eurToRub)
         {
-            switch (resultCurrency)
+            return resultCurrency switch
             {
-                case "usd":
-                    return value / usdToRub;
-                case "eur":
-                    return value / eurToRub;
-                default:
-                    return value;
-            }
+                "usd" => value / usdToRub,
+                "eur" => value / eurToRub,
+                _ => value
+            };
         }
     }
 }

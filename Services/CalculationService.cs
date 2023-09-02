@@ -63,12 +63,10 @@ namespace PortfolioBalancerServer.Services
                 return contributionAmount;
 
             }
-            else if (value > decimal.Zero)
-            {
-                return value;
-            }
 
-            return decimal.Zero;
+            return value > decimal.Zero 
+                ? value 
+                : decimal.Zero;
         }
 
         private static (decimal, decimal) GetNewTotalAmount(decimal stocksAmount, decimal bondsAmount, decimal contributionAmount, decimal firstRatio, decimal secondRatio)
