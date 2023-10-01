@@ -7,8 +7,13 @@
     ports:
       - 5000:80
       - 5001:443
-    networks: 
+    networks:
       - appnet
+    healthcheck:
+        test: curl --fail -s http://localhost:5000/ || exit 1
+        interval: 1m30s
+        timeout: 10s
+        retries: 3
       
 networks:
   appnet:
