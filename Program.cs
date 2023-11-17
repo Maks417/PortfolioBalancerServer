@@ -32,8 +32,7 @@ app.UseHttpsRedirection();
 app.UseCors(b => b
     .AllowAnyMethod()
     .AllowAnyHeader()
-    .SetIsOriginAllowed(_ => true)
-    .AllowCredentials());
+    .AllowAnyOrigin());
 
 app.MapPost("api/portfolio/calculate", async (ICurrencyConverter currencyConverter, ICalculationService calculationService, [FromBody]CalculationData formData) =>
 {
