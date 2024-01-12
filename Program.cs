@@ -20,7 +20,7 @@ builder.Services.AddSwaggerGen(c => { c.SwaggerDoc("v1", new OpenApiInfo { Title
 builder.Services.AddTransient<ICurrencyConverter, CurrencyConverter>();
 builder.Services.AddSingleton<ICalculationService, CalculationService>();
 
-builder.Services.AddHttpClient<ICurrencyConverter, CurrencyConverter>(client => { client.BaseAddress = new Uri(builder.Configuration["CurrencyServiceUrl"]); });
+builder.Services.AddHttpClient<ICurrencyConverter, CurrencyConverter>(client => { client.BaseAddress = new Uri(builder.Configuration["CurrencyServiceUrl"] ?? string.Empty); });
 
 var app = builder.Build();
 
