@@ -1,4 +1,5 @@
-﻿using PortfolioBalancerServer.Extensions;
+﻿using PortfolioBalancerServer.Domain;
+using PortfolioBalancerServer.Extensions;
 using PortfolioBalancerServer.Interfaces;
 using PortfolioBalancerServer.Models;
 
@@ -8,29 +9,9 @@ namespace PortfolioBalancerServer.Services
     {
         public (decimal, decimal) ParseRatio(string ratio)
         {
-            if (string.IsNullOrEmpty(ratio)
-                || ratio.Length > 5
-                || (!ratio.Equals("100", StringComparison.OrdinalIgnoreCase) && !ratio.Contains('/', StringComparison.OrdinalIgnoreCase)))
-            {
-                return (decimal.Zero, decimal.Zero);
-            }
-
-            if (ratio.Equals("100", StringComparison.OrdinalIgnoreCase))
-            {
-                return (1, decimal.Zero);
-            }
-
-            var ratios = ratio.Split('/');
-            if (ratios.Length == 2
-                && decimal.TryParse(ratios[0], out var firstRatio)
-                && decimal.TryParse(ratios[1], out var secondRatio)
-                && firstRatio + secondRatio == 100)
-            {
-                return (firstRatio / 100, secondRatio / 100);
-            }
-
-            return (decimal.Zero, decimal.Zero);
-
+            return RatioParser.TryParse(ratio, out var first, out var second)
+                ? (first, second)
+                : (decimal.Zero, decimal.Zero);
         }
 
         public AssetsDiff SplitAssetsByRatio(decimal stocksAmount, decimal bondsAmount, decimal contributionAmount, decimal firstRatio, decimal secondRatio)

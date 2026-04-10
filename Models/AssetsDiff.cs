@@ -6,6 +6,6 @@
 
         public decimal BondsDiff { get; set; }
 
-        public string Currency { get; set; }
+        public string? Currency { get; set; }
     }
 }
