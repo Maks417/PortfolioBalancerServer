@@ -1,50 +1,76 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using PortfolioBalancerServer.Domain;
+using PortfolioBalancerServer.Serialization;
 
-namespace PortfolioBalancerServer.Models
+namespace PortfolioBalancerServer.Models;
+
+public record CalculationData : IValidatableObject
 {
-    public record CalculationData : IValidatableObject
+    [Required]
+    public required string Ratio { get; set; }
+
+    [Required]
+    public required Asset[] StockValues { get; set; }
+
+    [Required]
+    public required Asset[] BondValues { get; set; }
+
+    [Required]
+    public required Asset ContributionAmount { get; set; }
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
-        [Required, MinLength(3)]
-        public required string Ratio { get; set; }
-
-        [Required]
-        public required Asset[] StockValues { get; set; }
-
-        [Required]
-        public required Asset[] BondValues { get; set; }
-
-        [Required]
-        public required Asset ContributionAmount { get; set; }
-
-        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        if (!RatioParser.TryParse(Ratio, out _, out _))
         {
-            if (!RatioParser.TryParse(Ratio, out _, out _))
-            {
-                yield return new ValidationResult("Ratio must have format like '70/30' or '100' with parts summing to 100.");
-            }
+            yield return new ValidationResult(
+                "Ratio must have format like '70/30', '100', or '0' with parts summing to 100.",
+                [nameof(Ratio)]);
+        }
+
+        if (AssetFilter.FilterFilled(StockValues).Length == 0
+            && AssetFilter.FilterFilled(BondValues).Length == 0)
+        {
+            yield return new ValidationResult(
+                "At least one stock or bond position with a value greater than zero is required.",
+                [nameof(StockValues), nameof(BondValues)]);
+        }
+
+        if (ContributionAmount.Value <= decimal.Zero)
+        {
+            yield return new ValidationResult(
+                "Contribution amount must be greater than zero.",
+                [$"{nameof(ContributionAmount)}.{nameof(Asset.Value)}"]);
         }
     }
+}
 
-    public record Asset : IValidatableObject
+public record Asset : IValidatableObject
+{
+    [Required]
+    [Range(0, double.PositiveInfinity)]
+    [JsonConverter(typeof(FlexibleDecimalConverter))]
+    public decimal Value { get; set; }
+
+    [Required]
+    [MinLength(3)]
+    public required string Currency { get; set; }
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
-        [Required, Range(0, double.PositiveInfinity)]
-        public decimal Value { get; set; }
-
-        [Required, MinLength(1)]
-        public required string Currency { get; set; }
-
-        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        if (string.IsNullOrWhiteSpace(Currency))
         {
-            if (Value < 0)
-            {
-                yield return new ValidationResult("Asset value must be positive.");
-            }
+            yield return new ValidationResult(
+                "Currency is required.",
+                [nameof(Currency)]);
+            yield break;
+        }
 
-            if (string.IsNullOrEmpty(Currency) || Currency.Length <= 1)
-            {
-                yield return new ValidationResult("Currency must follow ISO 4217 code");
-            }
+        if (!SupportedCurrency.IsSupported(Currency))
+        {
+            yield return new ValidationResult(
+                "Currency must be one of: rub, usd, eur.",
+                [nameof(Currency)]);
         }
     }
 }
