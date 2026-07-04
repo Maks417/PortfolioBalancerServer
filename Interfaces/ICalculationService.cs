@@ -1,11 +1,13 @@
 ﻿using PortfolioBalancerServer.Models;
 
-namespace PortfolioBalancerServer.Interfaces
-{
-    public interface ICalculationService
-    {
-        (decimal, decimal) ParseRatio(string ratio);
+namespace PortfolioBalancerServer.Interfaces;
 
-        AssetsDiff SplitAssetsByRatio(decimal stocksAmount, decimal bondsAmount, decimal contributionAmount, decimal firstRatio, decimal secondRatio);
-    }
+public interface ICalculationService
+{
+    AssetsDiff SplitAssetsByRatio(
+        decimal stocksAmount,
+        decimal bondsAmount,
+        decimal contributionAmount,
+        decimal firstRatio,
+        decimal secondRatio);
 }
