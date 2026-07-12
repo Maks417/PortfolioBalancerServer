@@ -69,6 +69,7 @@ public sealed class UnavailableRatesApiFactory : WebApplicationFactory<Program>
         public Task<ConversionResult> ConvertAsync(
             IEnumerable<Asset> stocks,
             IEnumerable<Asset> bonds,
+            IEnumerable<Asset> cash,
             Asset contribution,
             CancellationToken cancellationToken = default) =>
             throw new ExchangeRatesUnavailableException();

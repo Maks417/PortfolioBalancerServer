@@ -7,20 +7,34 @@ public static class RatioParser
         firstRatio = decimal.Zero;
         secondRatio = decimal.Zero;
 
-        if (string.IsNullOrWhiteSpace(ratio) || ratio.Length > 5)
+        if (!TryParseParts(ratio, out var parts))
+        {
+            return false;
+        }
+
+        firstRatio = parts[0];
+        secondRatio = parts[1];
+        return true;
+    }
+
+    public static bool TryParseParts(string? ratio, out decimal[] parts)
+    {
+        parts = [];
+
+        if (string.IsNullOrWhiteSpace(ratio))
         {
             return false;
         }
 
         if (ratio.Equals("100", StringComparison.OrdinalIgnoreCase))
         {
-            firstRatio = 1;
+            parts = [1m, 0m, 0m];
             return true;
         }
 
         if (ratio.Equals("0", StringComparison.OrdinalIgnoreCase))
         {
-            secondRatio = 1;
+            parts = [0m, 1m, 0m];
             return true;
         }
 
@@ -29,17 +43,30 @@ public static class RatioParser
             return false;
         }
 
-        var ratios = ratio.Split('/');
-        if (ratios.Length == 2
-            && decimal.TryParse(ratios[0], out var first)
-            && decimal.TryParse(ratios[1], out var second)
-            && first + second == 100)
+        var segments = ratio.Split('/');
+        if (segments.Length is not (2 or 3))
         {
-            firstRatio = first / 100;
-            secondRatio = second / 100;
-            return true;
+            return false;
         }
 
-        return false;
+        var values = new decimal[segments.Length];
+        for (var i = 0; i < segments.Length; i++)
+        {
+            if (!decimal.TryParse(segments[i], out values[i]))
+            {
+                return false;
+            }
+        }
+
+        if (values.Sum() != 100)
+        {
+            return false;
+        }
+
+        parts = segments.Length == 2
+            ? [values[0] / 100m, values[1] / 100m, 0m]
+            : [values[0] / 100m, values[1] / 100m, values[2] / 100m];
+
+        return true;
     }
 }

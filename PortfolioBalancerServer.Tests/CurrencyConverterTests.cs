@@ -17,6 +17,7 @@ public class CurrencyConverterTests
         var result = await sut.ConvertAsync(
             [new Asset { Value = 10, Currency = "usd" }],
             [],
+            [],
             new Asset { Value = 0, Currency = "rub" });
 
         Assert.Equal(750, result.StocksAmount);
@@ -34,6 +35,7 @@ public class CurrencyConverterTests
 
         var result = await sut.ConvertAsync(
             [new Asset { Value = 1, Currency = "USD" }],
+            [],
             [],
             new Asset { Value = 0, Currency = "RUB" });
 

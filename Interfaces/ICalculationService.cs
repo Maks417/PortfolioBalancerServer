@@ -7,8 +7,9 @@ public interface ICalculationService
     AssetsDiff SplitAssetsByRatio(
         decimal stocksAmount,
         decimal bondsAmount,
+        decimal cashAmount,
         decimal contributionAmount,
-        decimal firstRatio,
-        decimal secondRatio,
-        string mode = "contribution");
+        decimal[] targetRatios,
+        string mode = "contribution",
+        decimal? driftThreshold = null);
 }

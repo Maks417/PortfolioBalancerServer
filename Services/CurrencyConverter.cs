@@ -16,6 +16,7 @@ public sealed class CurrencyConverter : ICurrencyConverter
     public async Task<ConversionResult> ConvertAsync(
         IEnumerable<Asset> stocks,
         IEnumerable<Asset> bonds,
+        IEnumerable<Asset> cash,
         Asset contribution,
         CancellationToken cancellationToken = default)
     {
@@ -28,16 +29,19 @@ public sealed class CurrencyConverter : ICurrencyConverter
 
         var stocksAmount = stocks.Sum(x => ConvertToRub(x, snapshot.Usd, snapshot.Eur));
         var bondsAmount = bonds.Sum(x => ConvertToRub(x, snapshot.Usd, snapshot.Eur));
+        var cashAmount = cash.Sum(x => ConvertToRub(x, snapshot.Usd, snapshot.Eur));
         var contributionAmount = ConvertToRub(contribution, snapshot.Usd, snapshot.Eur);
 
         var resultCurrency = SupportedCurrency.Normalize(contribution.Currency);
         var convertedStocksAmount = ConvertFromRub(resultCurrency, stocksAmount, snapshot.Usd, snapshot.Eur);
         var convertedBondsAmount = ConvertFromRub(resultCurrency, bondsAmount, snapshot.Usd, snapshot.Eur);
+        var convertedCashAmount = ConvertFromRub(resultCurrency, cashAmount, snapshot.Usd, snapshot.Eur);
         var convertedContributionAmount = ConvertFromRub(resultCurrency, contributionAmount, snapshot.Usd, snapshot.Eur);
 
         return new ConversionResult(
             convertedStocksAmount,
             convertedBondsAmount,
+            convertedCashAmount,
             convertedContributionAmount,
             ToFxMetadata(snapshot));
     }

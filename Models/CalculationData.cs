@@ -16,26 +16,35 @@ public record CalculationData : IValidatableObject
     [Required]
     public required Asset[] BondValues { get; set; }
 
+    public Asset[] CashValues { get; set; } = [];
+
     [Required]
     public required Asset ContributionAmount { get; set; }
 
     public string Mode { get; set; } = CalculationModes.Contribution;
 
+    [Range(0, 50)]
+    public decimal? DriftThreshold { get; set; }
+
+    [Range(0, double.PositiveInfinity)]
+    public decimal? MinTradeAmount { get; set; }
+
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
-        if (!RatioParser.TryParse(Ratio, out _, out _))
+        if (!RatioParser.TryParseParts(Ratio, out _))
         {
             yield return new ValidationResult(
-                "Ratio must have format like '70/30', '100', or '0' with parts summing to 100.",
+                "Ratio must have format like '70/30', '60/30/10', '100', or '0' with parts summing to 100.",
                 [nameof(Ratio)]);
         }
 
         if (AssetFilter.FilterFilled(StockValues).Length == 0
-            && AssetFilter.FilterFilled(BondValues).Length == 0)
+            && AssetFilter.FilterFilled(BondValues).Length == 0
+            && AssetFilter.FilterFilled(CashValues).Length == 0)
         {
             yield return new ValidationResult(
-                "At least one stock or bond position with a value greater than zero is required.",
-                [nameof(StockValues), nameof(BondValues)]);
+                "At least one stock, bond, or cash position with a value greater than zero is required.",
+                [nameof(StockValues), nameof(BondValues), nameof(CashValues)]);
         }
 
         if (!string.Equals(Mode, CalculationModes.Contribution, StringComparison.OrdinalIgnoreCase)

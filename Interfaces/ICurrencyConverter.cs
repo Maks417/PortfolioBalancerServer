@@ -7,6 +7,7 @@ public interface ICurrencyConverter
     Task<ConversionResult> ConvertAsync(
         IEnumerable<Asset> stocks,
         IEnumerable<Asset> bonds,
+        IEnumerable<Asset> cash,
         Asset contribution,
         CancellationToken cancellationToken = default);
 

@@ -52,12 +52,13 @@ public static class PortfolioEndpoints
     {
         formData.StockValues = AssetFilter.FilterFilled(formData.StockValues);
         formData.BondValues = AssetFilter.FilterFilled(formData.BondValues);
+        formData.CashValues = AssetFilter.FilterFilled(formData.CashValues);
         formData.ContributionAmount.Currency = SupportedCurrency.Normalize(formData.ContributionAmount.Currency);
         formData.Mode = string.IsNullOrWhiteSpace(formData.Mode)
             ? CalculationModes.Contribution
             : formData.Mode.Trim().ToLowerInvariant();
 
-        foreach (var asset in formData.StockValues.Concat(formData.BondValues))
+        foreach (var asset in formData.StockValues.Concat(formData.BondValues).Concat(formData.CashValues))
         {
             asset.Currency = SupportedCurrency.Normalize(asset.Currency);
         }
@@ -76,6 +77,7 @@ public static class PortfolioEndpoints
             conversion = await currencyConverter.ConvertAsync(
                 formData.StockValues,
                 formData.BondValues,
+                formData.CashValues,
                 formData.ContributionAmount,
                 cancellationToken);
         }
@@ -87,15 +89,16 @@ public static class PortfolioEndpoints
                 title: "Exchange rates unavailable");
         }
 
-        RatioParser.TryParse(formData.Ratio, out var firstRatio, out var secondRatio);
+        RatioParser.TryParseParts(formData.Ratio, out var targetRatios);
 
         var assetsDiff = calculationService.SplitAssetsByRatio(
             conversion.StocksAmount,
             conversion.BondsAmount,
+            conversion.CashAmount,
             conversion.ContributionAmount,
-            firstRatio,
-            secondRatio,
-            formData.Mode);
+            targetRatios,
+            formData.Mode,
+            formData.DriftThreshold);
         assetsDiff.Currency = formData.ContributionAmount.Currency;
         assetsDiff.Fx = conversion.Fx;
 
@@ -113,34 +116,47 @@ public static class PortfolioEndpoints
             CurrencyConverter.ConvertFromRub(currency, amount, usd, eur);
 
         var isRebalance = string.Equals(formData.Mode, CalculationModes.Rebalance, StringComparison.OrdinalIgnoreCase);
-        assetsDiff.StocksBreakdown = isRebalance
-            ? PositionBreakdown.DistributeRebalance(
-                formData.StockValues,
-                assetsDiff.StocksDiff,
-                resultCurrency,
-                ToRubAmount,
-                FromRubAmount)
-            : PositionBreakdown.DistributeBuys(
-                formData.StockValues,
-                assetsDiff.StocksDiff,
-                resultCurrency,
-                ToRubAmount,
-                FromRubAmount);
-
-        assetsDiff.BondsBreakdown = isRebalance
-            ? PositionBreakdown.DistributeRebalance(
-                formData.BondValues,
-                assetsDiff.BondsDiff,
-                resultCurrency,
-                ToRubAmount,
-                FromRubAmount)
-            : PositionBreakdown.DistributeBuys(
-                formData.BondValues,
-                assetsDiff.BondsDiff,
-                resultCurrency,
-                ToRubAmount,
-                FromRubAmount);
+        assetsDiff.StocksBreakdown = ApplyBreakdown(
+            formData.StockValues,
+            assetsDiff.StocksDiff,
+            isRebalance,
+            resultCurrency,
+            formData.MinTradeAmount,
+            ToRubAmount,
+            FromRubAmount);
+        assetsDiff.BondsBreakdown = ApplyBreakdown(
+            formData.BondValues,
+            assetsDiff.BondsDiff,
+            isRebalance,
+            resultCurrency,
+            formData.MinTradeAmount,
+            ToRubAmount,
+            FromRubAmount);
+        assetsDiff.CashBreakdown = ApplyBreakdown(
+            formData.CashValues,
+            assetsDiff.CashDiff,
+            isRebalance,
+            resultCurrency,
+            formData.MinTradeAmount,
+            ToRubAmount,
+            FromRubAmount);
 
         return Results.Ok(assetsDiff);
+    }
+
+    private static PositionAllocation[] ApplyBreakdown(
+        IReadOnlyList<Asset> rows,
+        decimal classDiff,
+        bool isRebalance,
+        string resultCurrency,
+        decimal? minTradeAmount,
+        Func<decimal, string, decimal> toRub,
+        Func<decimal, string, decimal> fromRub)
+    {
+        var breakdown = isRebalance
+            ? PositionBreakdown.DistributeRebalance(rows, classDiff, resultCurrency, toRub, fromRub)
+            : PositionBreakdown.DistributeBuys(rows, classDiff, resultCurrency, toRub, fromRub);
+
+        return TradeRounding.ApplyMinTrade(breakdown, minTradeAmount, resultCurrency);
     }
 }

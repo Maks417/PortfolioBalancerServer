@@ -19,6 +19,7 @@ builder.Services.AddOptions<CurrencyServiceOptions>()
 
 builder.Services.Configure<CorsOptions>(builder.Configuration.GetSection(CorsOptions.SectionName));
 builder.Services.Configure<RateOptions>(builder.Configuration.GetSection(RateOptions.SectionName));
+builder.Services.Configure<FallbackRateOptions>(builder.Configuration.GetSection(FallbackRateOptions.SectionName));
 
 builder.Services.AddEndpointsApiExplorer();
 
@@ -62,12 +63,17 @@ if (enableSwagger)
 
 builder.Services.AddSingleton<ICalculationService, CalculationService>();
 
-builder.Services.AddHttpClient<IRateProvider, CbrRateProvider>((sp, client) =>
+builder.Services.AddHttpClient<CbrRateProvider>((sp, client) =>
 {
     var options = sp.GetRequiredService<IOptions<CurrencyServiceOptions>>().Value;
     client.BaseAddress = new Uri(options.CurrencyServiceUrl);
     client.Timeout = TimeSpan.FromSeconds(10);
 });
+
+builder.Services.AddSingleton<IRateProvider>(sp =>
+    new FallbackRateProvider(
+        sp.GetRequiredService<CbrRateProvider>(),
+        sp.GetRequiredService<IOptions<FallbackRateOptions>>()));
 
 builder.Services.AddSingleton<ICurrencyConverter, CurrencyConverter>();
 
