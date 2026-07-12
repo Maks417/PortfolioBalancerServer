@@ -2,7 +2,8 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
-using Microsoft.OpenApi;
+using Microsoft.AspNetCore.OpenApi;
+using Scalar.AspNetCore;
 using PortfolioBalancerServer.Endpoints;
 using PortfolioBalancerServer.Interfaces;
 using PortfolioBalancerServer.Options;
@@ -48,18 +49,19 @@ builder.Services.AddMemoryCache();
 var enableSwagger = builder.Configuration.GetValue("EnableSwagger", false)
     || builder.Environment.IsDevelopment();
 
-if (enableSwagger)
+builder.Services.AddOpenApi("v1", options =>
 {
-    builder.Services.AddSwaggerGen(c =>
+    options.AddDocumentTransformer((document, _, _) =>
     {
-        c.SwaggerDoc("v1", new OpenApiInfo
+        document.Info = new()
         {
             Title = "PortfolioBalancerServer",
             Version = "v1",
             Description = "API for portfolio-balancer-client. Calculates stock/bond contribution split."
-        });
+        };
+        return Task.CompletedTask;
     });
-}
+});
 
 builder.Services.AddSingleton<ICalculationService, CalculationService>();
 
@@ -102,8 +104,12 @@ app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.Health
 
 if (enableSwagger)
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "PortfolioBalancerServer v1"));
+    app.MapOpenApi();
+    app.MapScalarApiReference(options =>
+    {
+        options.WithTitle("PortfolioBalancerServer");
+        options.WithOpenApiRoutePattern("/openapi/{documentName}.json");
+    });
 }
 
 if (builder.Configuration.GetValue("EnableHttpsRedirection", false))

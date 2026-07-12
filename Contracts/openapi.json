@@ -1,0 +1,389 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "PortfolioBalancerServer",
+    "description": "API for portfolio-balancer-client. Calculates stock/bond contribution split.",
+    "version": "v1"
+  },
+  "paths": {
+    "/api/portfolio/rates": {
+      "get": {
+        "tags": [
+          "PortfolioEndpoints"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RatesResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/portfolio/calculate": {
+      "post": {
+        "tags": [
+          "PortfolioEndpoints"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalculationData"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetsDiff"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Asset": {
+        "required": [
+          "value",
+          "currency"
+        ],
+        "type": "object",
+        "properties": {
+          "value": {
+            "minimum": 0,
+            "format": "double"
+          },
+          "currency": {
+            "minLength": 3,
+            "type": "string"
+          }
+        }
+      },
+      "AssetsDiff": {
+        "type": "object",
+        "properties": {
+          "stocksDiff": {
+            "format": "double"
+          },
+          "bondsDiff": {
+            "format": "double"
+          },
+          "cashDiff": {
+            "format": "double"
+          },
+          "currency": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "mode": {
+            "type": "string"
+          },
+          "contributionOnlyNote": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "toleranceNote": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "fx": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FxMetadata"
+              }
+            ]
+          },
+          "stocksBreakdown": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PositionAllocation"
+            }
+          },
+          "bondsBreakdown": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PositionAllocation"
+            }
+          },
+          "cashBreakdown": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PositionAllocation"
+            }
+          }
+        }
+      },
+      "CalculationData": {
+        "required": [
+          "ratio",
+          "stockValues",
+          "bondValues",
+          "contributionAmount"
+        ],
+        "type": "object",
+        "properties": {
+          "ratio": {
+            "type": "string"
+          },
+          "stockValues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Asset"
+            }
+          },
+          "bondValues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Asset"
+            }
+          },
+          "cashValues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Asset"
+            }
+          },
+          "contributionAmount": {
+            "$ref": "#/components/schemas/Asset"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "driftThreshold": {
+            "maximum": 50,
+            "minimum": 0,
+            "format": "double"
+          },
+          "minTradeAmount": {
+            "minimum": 0,
+            "format": "double"
+          }
+        }
+      },
+      "FxMetadata": {
+        "required": [
+          "source"
+        ],
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "ratesAsOf": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "fromCache": {
+            "type": "boolean"
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "ratesPerUnitInRub": {
+            "type": "object"
+          }
+        }
+      },
+      "HttpValidationProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "PositionAllocation": {
+        "required": [
+          "currency"
+        ],
+        "type": "object",
+        "properties": {
+          "amount": {
+            "format": "double"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "isSell": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "RatesResponse": {
+        "required": [
+          "source"
+        ],
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "ratesAsOf": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "fromCache": {
+            "type": "boolean"
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "ratesPerUnitInRub": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "PortfolioEndpoints"
+    }
+  ]
+}

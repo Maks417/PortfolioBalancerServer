@@ -24,18 +24,11 @@ jobs:
       - name: Build and test
         run: dotnet test PortfolioBalancerServer.sln --configuration Release
 
-      - name: Generate OpenAPI artifact
-        working-directory: PortfolioBalancerServer
-        run: |
-          dotnet build PortfolioBalancerServer.csproj -c Release
-          dotnet tool install --global Swashbuckle.AspNetCore.Cli --version 10.1.0
-          EnableSwagger=true dotnet swagger tofile bin/Release/net10.0/PortfolioBalancerServer.dll v1 Contracts/openapi.json
-
       - name: Upload OpenAPI artifact
         uses: actions/upload-artifact@v4
         with:
           name: openapi
-          path: PortfolioBalancerServer/Contracts/openapi.json
+          path: Contracts/openapi.json
 
       - name: dotnet publish
         run: dotnet publish PortfolioBalancerServer.csproj -c Release -o ${{env.DOTNET_ROOT}}/myapp

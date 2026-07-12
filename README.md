@@ -77,7 +77,7 @@ Returns current FX metadata used by calculations:
 | Key | Description | Default |
 |-----|-------------|---------|
 | `CurrencyServiceUrl` | CBR daily rates base URL | `https://www.cbr-xml-daily.ru/` |
-| `EnableSwagger` | Expose Swagger UI | `false` (enabled in Development) |
+| `EnableSwagger` | Expose OpenAPI JSON and Scalar UI | `false` (enabled in Development) |
 | `EnableHttpsRedirection` | Redirect HTTP to HTTPS | `false` |
 | `Cors:AllowedOrigins` | Allowed browser origins (required in production) | GitHub Pages + `localhost:3000` |
 | `Rates:CacheTtlHours` | FX cache TTL in hours | `1` |
@@ -93,7 +93,8 @@ dotnet run
 ```
 
 - API: http://localhost:5000
-- Swagger: http://localhost:5000/swagger (Development)
+- OpenAPI: http://localhost:5000/openapi/v1.json (Development)
+- Scalar UI: http://localhost:5000/scalar/v1 (Development)
 
 ## Docker
 
@@ -111,6 +112,6 @@ dotnet test PortfolioBalancerServer.sln
 
 ## Tech stack
 
-- .NET 10, ASP.NET Core Minimal APIs
+- .NET 10, ASP.NET Core Minimal APIs, native OpenAPI + Scalar
 - Exchange rates from [CBR XML Daily](https://www.cbr-xml-daily.ru/)
 - Deployed to Azure Web App via GitHub Actions
