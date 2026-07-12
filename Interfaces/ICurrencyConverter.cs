@@ -4,10 +4,13 @@ namespace PortfolioBalancerServer.Interfaces;
 
 public interface ICurrencyConverter
 {
-    Task<(decimal stocksAmount, decimal bondsAmount, decimal contributionAmount)> Convert(
+    Task<ConversionResult> ConvertAsync(
         IEnumerable<Asset> stocks,
         IEnumerable<Asset> bonds,
-        Asset contribution);
+        Asset contribution,
+        CancellationToken cancellationToken = default);
+
+    Task<RatesResponse> GetRatesResponseAsync(CancellationToken cancellationToken = default);
 
     Task<bool> AreRatesAvailableAsync(CancellationToken cancellationToken = default);
 }

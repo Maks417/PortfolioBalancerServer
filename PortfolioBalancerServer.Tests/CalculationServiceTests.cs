@@ -41,4 +41,24 @@ public class CalculationServiceTests
 
         Assert.Equal(33.34m, diff.StocksDiff + diff.BondsDiff);
     }
+
+    [Fact]
+    public void SplitAssetsByRatio_RebalanceMode_AllowsSellRecommendations()
+    {
+        var diff = _sut.SplitAssetsByRatio(80, 20, 0, 0.5m, 0.5m, CalculationService.RebalanceMode);
+
+        Assert.Equal(-30, diff.StocksDiff);
+        Assert.Equal(30, diff.BondsDiff);
+        Assert.Equal(CalculationService.RebalanceMode, diff.Mode);
+    }
+
+    [Fact]
+    public void SplitAssetsByRatio_ContributionMode_AddsNoteWhenTargetUnreachable()
+    {
+        var diff = _sut.SplitAssetsByRatio(120, 30, 50, 0.5m, 0.5m);
+
+        Assert.Equal(0, diff.StocksDiff);
+        Assert.Equal(50, diff.BondsDiff);
+        Assert.Contains("акций", diff.ContributionOnlyNote);
+    }
 }

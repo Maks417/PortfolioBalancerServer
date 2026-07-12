@@ -9,5 +9,6 @@ public interface ICalculationService
         decimal bondsAmount,
         decimal contributionAmount,
         decimal firstRatio,
-        decimal secondRatio);
+        decimal secondRatio,
+        string mode = "contribution");
 }

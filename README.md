@@ -6,6 +6,20 @@ Backend API for [portfolio-balancer-client](https://github.com/Maks417/portfolio
 
 ## API
 
+### `GET /api/portfolio/rates`
+
+Returns current FX metadata used by calculations:
+
+```json
+{
+  "source": "CBR",
+  "ratesAsOf": "2026-03-01T00:00:00",
+  "fromCache": false,
+  "stale": false,
+  "ratesPerUnitInRub": { "rub": 1, "usd": 90.12, "eur": 98.45 }
+}
+```
+
 ### `POST /api/portfolio/calculate`
 
 **Request body:**
@@ -15,9 +29,12 @@ Backend API for [portfolio-balancer-client](https://github.com/Maks417/portfolio
   "ratio": "70/30",
   "stockValues": [{ "value": 1000, "currency": "usd" }],
   "bondValues": [{ "value": 500, "currency": "rub" }],
-  "contributionAmount": { "value": 200, "currency": "usd" }
+  "contributionAmount": { "value": 200, "currency": "usd" },
+  "mode": "contribution"
 }
 ```
+
+**Modes:** `contribution` (default) allocates a new contribution; `rebalance` returns buy/sell amounts to reach the target ratio (contribution may be `0`).
 
 **Ratio formats:** `100` (all stocks), `0` (all bonds), or `X/Y` where `X + Y = 100` (e.g. `70/30`).
 
@@ -29,7 +46,18 @@ Backend API for [portfolio-balancer-client](https://github.com/Maks417/portfolio
 {
   "stocksDiff": 40.0,
   "bondsDiff": 60.0,
-  "currency": "usd"
+  "currency": "usd",
+  "mode": "contribution",
+  "contributionOnlyNote": null,
+  "fx": {
+    "source": "CBR",
+    "ratesAsOf": "2026-03-01T00:00:00",
+    "fromCache": false,
+    "stale": false,
+    "ratesPerUnitInRub": { "rub": 1, "usd": 90.12, "eur": 98.45 }
+  },
+  "stocksBreakdown": [{ "amount": 40, "currency": "usd", "isSell": false }],
+  "bondsBreakdown": [{ "amount": 60, "currency": "rub", "isSell": false }]
 }
 ```
 
@@ -51,7 +79,12 @@ Backend API for [portfolio-balancer-client](https://github.com/Maks417/portfolio
 | `CurrencyServiceUrl` | CBR daily rates base URL | `https://www.cbr-xml-daily.ru/` |
 | `EnableSwagger` | Expose Swagger UI | `false` (enabled in Development) |
 | `EnableHttpsRedirection` | Redirect HTTP to HTTPS | `false` |
-| `Cors:AllowedOrigins` | Allowed browser origins | GitHub Pages + `localhost:3000` |
+| `Cors:AllowedOrigins` | Allowed browser origins (required in production) | GitHub Pages + `localhost:3000` |
+| `Rates:CacheTtlHours` | FX cache TTL in hours | `1` |
+
+Golden API fixtures live in `Contracts/` and are validated in tests.
+
+Platform scope and deferred features: see [PLATFORM.md](PLATFORM.md).
 
 ## Local development
 

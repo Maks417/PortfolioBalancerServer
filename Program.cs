@@ -1,3 +1,5 @@
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
@@ -16,10 +18,22 @@ builder.Services.AddOptions<CurrencyServiceOptions>()
     .ValidateOnStart();
 
 builder.Services.Configure<CorsOptions>(builder.Configuration.GetSection(CorsOptions.SectionName));
+builder.Services.Configure<RateOptions>(builder.Configuration.GetSection(RateOptions.SectionName));
 
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddCors();
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddFixedWindowLimiter("portfolio", limiter =>
+    {
+        limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.PermitLimit = 60;
+        limiter.QueueLimit = 0;
+    });
+});
 
 builder.Services.Configure<RouteOptions>(options => options.LowercaseUrls = true);
 
@@ -48,18 +62,31 @@ if (enableSwagger)
 
 builder.Services.AddSingleton<ICalculationService, CalculationService>();
 
-builder.Services.AddHttpClient<ICurrencyConverter, CurrencyConverter>((sp, client) =>
+builder.Services.AddHttpClient<IRateProvider, CbrRateProvider>((sp, client) =>
 {
     var options = sp.GetRequiredService<IOptions<CurrencyServiceOptions>>().Value;
     client.BaseAddress = new Uri(options.CurrencyServiceUrl);
     client.Timeout = TimeSpan.FromSeconds(10);
 });
 
+builder.Services.AddSingleton<ICurrencyConverter, CurrencyConverter>();
+
 builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy())
     .AddCheck<CurrencyRatesHealthCheck>("currency_rates");
 
 var app = builder.Build();
+
+app.Use(async (context, next) =>
+{
+    var correlationId = context.Request.Headers["X-Correlation-Id"].FirstOrDefault()
+        ?? Guid.NewGuid().ToString("N");
+    context.Response.Headers["X-Correlation-Id"] = correlationId;
+    using (app.Logger.BeginScope(new Dictionary<string, object> { ["CorrelationId"] = correlationId }))
+    {
+        await next();
+    }
+});
 
 app.MapHealthChecks("/health");
 app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
@@ -79,6 +106,13 @@ if (builder.Configuration.GetValue("EnableHttpsRedirection", false))
 }
 
 var corsOptions = app.Services.GetRequiredService<IOptions<CorsOptions>>().Value;
+if (!app.Environment.IsDevelopment()
+    && (corsOptions.AllowedOrigins is not { Length: > 0 }))
+{
+    throw new InvalidOperationException(
+        "Cors:AllowedOrigins must be configured in non-development environments.");
+}
+
 app.UseCors(policy =>
 {
     if (corsOptions.AllowedOrigins is { Length: > 0 })
@@ -89,11 +123,13 @@ app.UseCors(policy =>
     }
     else
     {
-        policy.AllowAnyMethod()
-            .AllowAnyHeader()
-            .AllowAnyOrigin();
+        policy.WithOrigins("http://localhost:3000")
+            .AllowAnyMethod()
+            .AllowAnyHeader();
     }
 });
+
+app.UseRateLimiter();
 
 app.MapPortfolioEndpoints();
 

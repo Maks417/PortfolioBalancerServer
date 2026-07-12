@@ -19,6 +19,8 @@ public record CalculationData : IValidatableObject
     [Required]
     public required Asset ContributionAmount { get; set; }
 
+    public string Mode { get; set; } = CalculationModes.Contribution;
+
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         if (!RatioParser.TryParse(Ratio, out _, out _))
@@ -36,7 +38,16 @@ public record CalculationData : IValidatableObject
                 [nameof(StockValues), nameof(BondValues)]);
         }
 
-        if (ContributionAmount.Value <= decimal.Zero)
+        if (!string.Equals(Mode, CalculationModes.Contribution, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(Mode, CalculationModes.Rebalance, StringComparison.OrdinalIgnoreCase))
+        {
+            yield return new ValidationResult(
+                "Mode must be 'contribution' or 'rebalance'.",
+                [nameof(Mode)]);
+        }
+
+        if (string.Equals(Mode, CalculationModes.Contribution, StringComparison.OrdinalIgnoreCase)
+            && ContributionAmount.Value <= decimal.Zero)
         {
             yield return new ValidationResult(
                 "Contribution amount must be greater than zero.",

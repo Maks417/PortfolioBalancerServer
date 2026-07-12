@@ -1,97 +1,79 @@
-﻿using System.Text.Json;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Logging;
-using PortfolioBalancerServer.Domain;
+﻿using PortfolioBalancerServer.Domain;
 using PortfolioBalancerServer.Interfaces;
 using PortfolioBalancerServer.Models;
 
 namespace PortfolioBalancerServer.Services;
 
-public class CurrencyConverter : ICurrencyConverter
+public sealed class CurrencyConverter : ICurrencyConverter
 {
-    private readonly HttpClient _httpClient;
-    private readonly IMemoryCache _cache;
-    private readonly ILogger<CurrencyConverter> _logger;
+    private readonly IRateProvider _rateProvider;
 
-    public CurrencyConverter(HttpClient httpClient, IMemoryCache cache, ILogger<CurrencyConverter> logger)
+    public CurrencyConverter(IRateProvider rateProvider)
     {
-        _httpClient = httpClient;
-        _cache = cache;
-        _logger = logger;
+        _rateProvider = rateProvider;
     }
 
-    public async Task<(decimal stocksAmount, decimal bondsAmount, decimal contributionAmount)> Convert(
+    public async Task<ConversionResult> ConvertAsync(
         IEnumerable<Asset> stocks,
         IEnumerable<Asset> bonds,
-        Asset contribution)
+        Asset contribution,
+        CancellationToken cancellationToken = default)
     {
-        var (usd, eur) = await GetRatesInRubAsync();
+        var snapshot = await _rateProvider.GetRatesAsync(cancellationToken);
 
-        if (usd == null || eur == null)
+        if (snapshot.Usd == null || snapshot.Eur == null)
         {
-            _logger.LogWarning("USD or EUR rate missing from cache or provider response.");
             throw new ExchangeRatesUnavailableException();
         }
 
-        var stocksAmount = stocks.Sum(x => ConvertToRub(x, usd, eur));
-        var bondsAmount = bonds.Sum(x => ConvertToRub(x, usd, eur));
-        var contributionAmount = ConvertToRub(contribution, usd, eur);
+        var stocksAmount = stocks.Sum(x => ConvertToRub(x, snapshot.Usd, snapshot.Eur));
+        var bondsAmount = bonds.Sum(x => ConvertToRub(x, snapshot.Usd, snapshot.Eur));
+        var contributionAmount = ConvertToRub(contribution, snapshot.Usd, snapshot.Eur);
 
         var resultCurrency = SupportedCurrency.Normalize(contribution.Currency);
-        var convertedStocksAmount = ConvertFromRub(resultCurrency, stocksAmount, usd, eur);
-        var convertedBondsAmount = ConvertFromRub(resultCurrency, bondsAmount, usd, eur);
-        var convertedContributionAmount = ConvertFromRub(resultCurrency, contributionAmount, usd, eur);
+        var convertedStocksAmount = ConvertFromRub(resultCurrency, stocksAmount, snapshot.Usd, snapshot.Eur);
+        var convertedBondsAmount = ConvertFromRub(resultCurrency, bondsAmount, snapshot.Usd, snapshot.Eur);
+        var convertedContributionAmount = ConvertFromRub(resultCurrency, contributionAmount, snapshot.Usd, snapshot.Eur);
 
-        return (convertedStocksAmount, convertedBondsAmount, convertedContributionAmount);
+        return new ConversionResult(
+            convertedStocksAmount,
+            convertedBondsAmount,
+            convertedContributionAmount,
+            ToFxMetadata(snapshot));
+    }
+
+    public async Task<RatesResponse> GetRatesResponseAsync(CancellationToken cancellationToken = default)
+    {
+        var snapshot = await _rateProvider.GetRatesAsync(cancellationToken);
+        if (snapshot.Usd == null || snapshot.Eur == null)
+        {
+            throw new ExchangeRatesUnavailableException();
+        }
+
+        return new RatesResponse
+        {
+            Source = snapshot.Source,
+            RatesAsOf = snapshot.RatesAsOf,
+            FromCache = snapshot.FromCache,
+            Stale = snapshot.Stale,
+            RatesPerUnitInRub = BuildRatesPerUnit(snapshot.Usd, snapshot.Eur)
+        };
     }
 
     public async Task<bool> AreRatesAvailableAsync(CancellationToken cancellationToken = default)
     {
         try
         {
-            var (usd, eur) = await GetRatesInRubAsync(cancellationToken);
-            return usd != null && eur != null;
+            var snapshot = await _rateProvider.GetRatesAsync(cancellationToken);
+            return snapshot.Usd != null && snapshot.Eur != null;
         }
-        catch (Exception ex)
+        catch (ExchangeRatesUnavailableException)
         {
-            _logger.LogWarning(ex, "Exchange rate readiness check failed.");
             return false;
         }
     }
 
-    private async Task<(Currency? usd, Currency? eur)> GetRatesInRubAsync(
-        CancellationToken cancellationToken = default)
-    {
-        if (_cache.TryGetValue("usd", out Currency? usd) && _cache.TryGetValue("eur", out Currency? eur))
-        {
-            return (usd, eur);
-        }
-
-        try
-        {
-            var responseString = await _httpClient.GetStringAsync("daily_json.js", cancellationToken);
-            var rate = JsonSerializer.Deserialize<ExchangeRate>(responseString);
-
-            if (rate?.Currency == null
-                || !rate.Currency.TryGetValue("USD", out usd)
-                || !rate.Currency.TryGetValue("EUR", out eur))
-            {
-                return (null, null);
-            }
-
-            _cache.Set("usd", usd, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1) });
-            _cache.Set("eur", eur, new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1) });
-
-            return (usd, eur);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger.LogError(ex, "Failed to fetch exchange rates.");
-            throw new ExchangeRatesUnavailableException("Failed to fetch exchange rates.", ex);
-        }
-    }
-
-    private static decimal ConvertToRub(Asset asset, Currency usd, Currency eur)
+    internal static decimal ConvertToRub(Asset asset, Currency usd, Currency eur)
     {
         return SupportedCurrency.Normalize(asset.Currency) switch
         {
@@ -101,7 +83,7 @@ public class CurrencyConverter : ICurrencyConverter
         };
     }
 
-    private static decimal ConvertFromRub(string resultCurrency, decimal value, Currency usd, Currency eur)
+    internal static decimal ConvertFromRub(string resultCurrency, decimal value, Currency usd, Currency eur)
     {
         return resultCurrency switch
         {
@@ -111,6 +93,26 @@ public class CurrencyConverter : ICurrencyConverter
         };
     }
 
-    private static decimal RatePerUnit(Currency currency) =>
+    internal static decimal RatePerUnit(Currency currency) =>
         currency.Value / currency.Nominal;
+
+    private static FxMetadata ToFxMetadata(RateSnapshot snapshot) =>
+        new()
+        {
+            Source = snapshot.Source,
+            RatesAsOf = snapshot.RatesAsOf,
+            FromCache = snapshot.FromCache,
+            Stale = snapshot.Stale,
+            RatesPerUnitInRub = snapshot.Usd != null && snapshot.Eur != null
+                ? BuildRatesPerUnit(snapshot.Usd, snapshot.Eur)
+                : new Dictionary<string, decimal>()
+        };
+
+    private static Dictionary<string, decimal> BuildRatesPerUnit(Currency usd, Currency eur) =>
+        new()
+        {
+            ["rub"] = 1m,
+            ["usd"] = RatePerUnit(usd),
+            ["eur"] = RatePerUnit(eur)
+        };
 }

@@ -1,6 +1,4 @@
-using System.Net;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Logging.Abstractions;
+using PortfolioBalancerServer.Interfaces;
 using PortfolioBalancerServer.Models;
 using PortfolioBalancerServer.Services;
 
@@ -9,63 +7,65 @@ namespace PortfolioBalancerServer.Tests;
 public class CurrencyConverterTests
 {
     [Fact]
-    public async Task Convert_UsesNominalWhenConvertingUsdToRub()
+    public async Task ConvertAsync_UsesRatesFromProvider()
     {
-        var handler = new StubHttpMessageHandler(
-            """
-            {
-              "Valute": {
-                "USD": { "Nominal": 10, "Value": 750 },
-                "EUR": { "Nominal": 1, "Value": 90 }
-              }
-            }
-            """);
-        var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://example.com/") };
-        var sut = new CurrencyConverter(httpClient, new MemoryCache(new MemoryCacheOptions()), NullLogger<CurrencyConverter>.Instance);
+        var provider = new StubRateProvider(
+            new Currency { Nominal = 10, Value = 750 },
+            new Currency { Nominal = 1, Value = 90 });
+        var sut = new CurrencyConverter(provider);
 
-        var (stocks, _, _) = await sut.Convert(
+        var result = await sut.ConvertAsync(
             [new Asset { Value = 10, Currency = "usd" }],
             [],
             new Asset { Value = 0, Currency = "rub" });
 
-        Assert.Equal(750, stocks);
+        Assert.Equal(750, result.StocksAmount);
+        Assert.Equal("stub", result.Fx.Source);
+        Assert.Equal(75, result.Fx.RatesPerUnitInRub["usd"]);
     }
 
     [Fact]
-    public async Task Convert_NormalizesCurrencyCase()
+    public async Task ConvertAsync_NormalizesCurrencyCase()
     {
-        var handler = new StubHttpMessageHandler(
-            """
-            {
-              "Valute": {
-                "USD": { "Nominal": 1, "Value": 100 },
-                "EUR": { "Nominal": 1, "Value": 110 }
-              }
-            }
-            """);
-        var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://example.com/") };
-        var sut = new CurrencyConverter(httpClient, new MemoryCache(new MemoryCacheOptions()), NullLogger<CurrencyConverter>.Instance);
+        var provider = new StubRateProvider(
+            new Currency { Nominal = 1, Value = 100 },
+            new Currency { Nominal = 1, Value = 110 });
+        var sut = new CurrencyConverter(provider);
 
-        var (stocks, _, _) = await sut.Convert(
+        var result = await sut.ConvertAsync(
             [new Asset { Value = 1, Currency = "USD" }],
             [],
             new Asset { Value = 0, Currency = "RUB" });
 
-        Assert.Equal(100, stocks);
+        Assert.Equal(100, result.StocksAmount);
     }
 
-    private sealed class StubHttpMessageHandler : HttpMessageHandler
+    [Fact]
+    public async Task GetRatesResponseAsync_ReturnsProviderSnapshot()
     {
-        private readonly string _json;
+        var provider = new StubRateProvider(
+            new Currency { Nominal = 1, Value = 90 },
+            new Currency { Nominal = 1, Value = 100 },
+            new DateTime(2026, 3, 1));
+        var sut = new CurrencyConverter(provider);
 
-        public StubHttpMessageHandler(string json) => _json = json;
+        var rates = await sut.GetRatesResponseAsync();
 
-        protected override Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request,
-            CancellationToken cancellationToken) =>
-            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(_json)
-            });
+        Assert.Equal("stub", rates.Source);
+        Assert.Equal(90, rates.RatesPerUnitInRub["usd"]);
+        Assert.True(rates.Stale);
+    }
+
+    private sealed class StubRateProvider : IRateProvider
+    {
+        private readonly RateSnapshot _snapshot;
+
+        public StubRateProvider(Currency usd, Currency eur, DateTime? asOf = null, bool stale = true)
+        {
+            _snapshot = new RateSnapshot(usd, eur, asOf, false, stale, "stub");
+        }
+
+        public Task<RateSnapshot> GetRatesAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(_snapshot);
     }
 }
